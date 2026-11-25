@@ -60,7 +60,6 @@ button:disabled{opacity:.5}
   </div>
 </header>
 
-<!-- Connect screen -->
 <div id="scrConnect" class="wrap hide">
   <div class="card">
     <h2 style="margin-top:6px">GitHub se connect karein</h2>
@@ -80,7 +79,6 @@ button:disabled{opacity:.5}
   </div>
 </div>
 
-<!-- Main screen -->
 <div id="scrMain" class="wrap hide">
   <div id="globalMsg" class="msg"></div>
 
@@ -174,9 +172,11 @@ async function gh(url,opts){
 async function load(){
   const meta=await (await gh(API)).json();
   S.sha=meta.sha;
-  const raw=await (await gh(API,{headers:{Accept:"application/vnd.github.raw"}})).text();
-  const m=raw.match(/<script id="catalog" type="application\/json">([\s\S]*?)<\/script>/);
-  if(!m) throw new Error("index.html me catalog nahi mila");
+  const blob=await (await gh("https://api.github.com/repos/"+OWNER+"/"+REPO+"/git/blobs/"+meta.sha)).json();
+  const bytes=Uint8Array.from(atob(blob.content.replace(/\s/g,"")),c=>c.charCodeAt(0));
+  const raw=new TextDecoder("utf-8").decode(bytes);
+  const m=raw.match(/<script[^>]*id="catalog"[^>]*>([\s\S]*?)<\/script>/);
+  if(!m) throw new Error("catalog nahi mila. File ki shuruaat: "+raw.slice(0,120).replace(/\s+/g," "));
   S.raw=raw;
   S.data=JSON.parse(m[1]);
   if(!Array.isArray(S.data.books)) S.data.books=[];
@@ -214,7 +214,6 @@ function readTopSettings(){
   S.data.policy=$("#policy").value;
 }
 
-/* ---------- Edit ---------- */
 function openEdit(i){
   S.editIdx=i;
   const b=i<0?{tag:"",n:"",p:"",imgs:[],d:"",adv:0,id:nextId()}:S.data.books[i];
@@ -312,7 +311,6 @@ $("#btnNew").onclick=()=>openEdit(-1);
 $("#defAdv").oninput=()=>{readTopSettings();markChanged();};
 $("#policy").oninput=()=>{readTopSettings();markChanged();};
 
-/* ---------- Save to GitHub ---------- */
 function b64(str){
   const bytes=new TextEncoder().encode(str);
   let bin="";
@@ -324,7 +322,7 @@ function b64(str){
 $("#btnSave").onclick=async()=>{
   readTopSettings();
   const json=JSON.stringify(S.data).replace(/</g,"\\u003c");
-  const newRaw=S.raw.replace(/(<script id="catalog" type="application\/json">)[\s\S]*?(<\/script>)/,(_,a,b)=>a+json+b);
+  const newRaw=S.raw.replace(/(<script[^>]*id="catalog"[^>]*>)[\s\S]*?(<\/script>)/,(_,a,b)=>a+json+b);
   const btn=$("#btnSave"); btn.disabled=true; btn.textContent="Save ho raha hai...";
   try{
     const r=await gh(API,{method:"PUT",headers:{"Content-Type":"application/json"},
@@ -343,7 +341,6 @@ $("#btnSave").onclick=async()=>{
   }
 };
 
-/* ---------- Connect / reload / logout ---------- */
 $("#btnConnect").onclick=async()=>{
   const t=$("#tokenIn").value.trim();
   if(!t){ flash($("#connMsg"),"Token paste karein",false); return; }
@@ -386,4 +383,4 @@ window.addEventListener("beforeunload",e=>{ if(S.dirty){ e.preventDefault(); e.r
 })();
 </script>
 </body>
-  </html>
+</html>
