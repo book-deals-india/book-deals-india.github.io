@@ -1,0 +1,27 @@
+# Book.Deals.India
+
+> Online book store in India selling discounted bestseller combos and books. Pay online via UPI and confirm the order on WhatsApp.
+
+Website: https://book-deals-india.github.io/
+WhatsApp for orders and queries: +91 92510 73424
+
+## Books
+
+- The Metamorphosis + My Inventions (Combo of 2 Books): Franz Kafka's classic The Metamorphosis with Nikola Tesla's autobiography My Inventions. Price: Rs 239, online payment.
+- Why I Am an Atheist and Other Works, Bhagat Singh: Essays by Shaheed Bhagat Singh including "Why I Am an Atheist". Price: Rs 149, online payment.
+
+## How to order
+
+1. Select a book and click "Order Now".
+2. Enter name, mobile number and full delivery address, and send the order on WhatsApp.
+3. Pay via UPI and share the payment screenshot on WhatsApp. The order is processed after confirmation.
+
+## Returns and refunds
+
+- Damaged, torn or incorrect books: share a photo or unboxing video on WhatsApp within 48 hours of delivery. After verification we send a free replacement or a full refund.
+- Returns or exchanges are not accepted for change of mind or personal preference.
+- To cancel an order, message us on WhatsApp before dispatch.
+
+## Delivery
+
+- Delivery across India. Delivery charges and timing are confirmed on WhatsApp.
