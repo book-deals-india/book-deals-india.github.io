@@ -1,4 +1,4 @@
- <!doctype html>
+<!doctype html>
 <html lang="hi">
 <head>
 <meta charset="utf-8">
@@ -117,6 +117,8 @@ button:disabled{opacity:.5}
       </div>
       <label>Tag (jaise: Combo Offer) — khali chhod sakte hain</label>
       <input type="text" id="fTag">
+      <label>Delivery charge (₹) — sirf COD order par, khali = 0</label>
+      <input type="number" id="fDc" min="0" step="1">
       <label>Description (har line alag, store par bullets ki tarah dikhega)</label>
       <textarea id="fDesc"></textarea>
 
@@ -196,7 +198,7 @@ function renderList(){
     const img=(b.imgs&&b.imgs[0])?`<img src="${b.imgs[0]}" alt="">`:`<img alt="" style="display:flex">`;
     return `<div class="card book" data-i="${i}">${img}<div class="meta">
       <div class="name">${esc(b.n)||"(naam nahi)"}${b.tag?`<span class="tag">${esc(b.tag)}</span>`:""}</div>
-      <div class="muted">₹${esc(b.p)} · Advance ₹${b.adv>0?esc(b.adv):(S.data.advance||0)+" (default)"}</div>
+      <div class="muted">₹${esc(b.p)} · Advance ₹${b.adv>0?esc(b.adv):(S.data.advance||0)+" (default)"} · Delivery ₹${b.dc>0?esc(b.dc):0}</div>
     </div></div>`;
   }).join("");
   document.querySelectorAll("#books .book").forEach(el=>el.onclick=()=>openEdit(+el.dataset.i));
@@ -226,6 +228,7 @@ function openEdit(i){
   $("#fPrice").value=S.draft.p||"";
   $("#fAdv").value=S.draft.adv>0?S.draft.adv:"";
   $("#fTag").value=S.draft.tag||"";
+  $("#fDc").value=S.draft.dc>0?S.draft.dc:"";
   $("#fDesc").value=S.draft.d||"";
   $("#editId").textContent=i<0?"Nayi kitab":"Kitab #"+S.draft.id;
   $("#btnDelete").parentElement.classList.toggle("hide",i<0);
@@ -290,9 +293,11 @@ $("#btnApply").onclick=()=>{
   const adv=parseInt($("#fAdv").value,10);
   const book=Object.assign({},S.draft,{
     n:name, p:price, tag:$("#fTag").value.trim(), d:$("#fDesc").value,
-    adv:isNaN(adv)||adv<=0?0:adv
+    adv:isNaN(adv)||adv<=0?0:adv,
+    dc:(parseInt($("#fDc").value,10)>0?parseInt($("#fDc").value,10):0)
   });
   if(!book.adv) delete book.adv;
+  if(!book.dc) delete book.dc;
   if(S.editIdx<0){ S.data.books.push(book); }
   else { S.data.books[S.editIdx]=book; }
   markChanged();
@@ -344,7 +349,9 @@ $("#btnSave").onclick=async()=>{
   }finally{
     btn.textContent="Store par save karein";
   }
-};const PATCH_CSS=`
+};
+
+const PATCH_CSS=`
 .announce{background:var(--accent);color:var(--accent-fg);font-size:.82rem;text-align:center;padding:8px 12px;font-weight:600;letter-spacing:.01em}
 .tools{display:grid;gap:10px;margin:4px 0 14px}
 .search{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg)}
@@ -398,75 +405,4 @@ function applyStorePatches(t){
   function one(anchor){var n=t.split(anchor).length-1; if(n!==1) throw new Error("design anchor mila nahi ("+n+")"); }
   var css_anchor='</style>\n<meta name="description"';
   one(css_anchor); t=t.split(css_anchor).join(PATCH_CSS+css_anchor);
-  var ann_anchor='<header class="bar"><div class="wrap">';
-  one(ann_anchor); t=t.split(ann_anchor).join(PATCH_ANN);
-  var tools_anchor='  <h2 class="sec" id="books">Featured Books</h2>\n  <section class="products" id="products"></section>';
-  one(tools_anchor); t=t.split(tools_anchor).join(PATCH_TOOLS.replace(/\n  <section class="products" id="products"><\/section>$/,"")+'\n  <section class="products" id="products"></section>');
-  var a=t.indexOf("function renderProducts(){"), b=t.indexOf("function count(){");
-  if(a<0||b<=a) throw new Error("renderProducts block nahi mila");
-  t=t.slice(0,a)+PATCH_RP+t.slice(b);
-  var rev_anchor='  $("reviews").innerHTML=L.map(';
-  one(rev_anchor); t=t.split(rev_anchor).join(PATCH_REV+rev_anchor.slice(0));
-  return t;
-}
-async function designUpdate(){
-  if(!confirm("Store ka design update karna hai? Kitabein aur prices same rahenge.")) return;
-  var msg=$("#globalMsg");
-  try{
-    var meta=await (await gh(API)).json();
-    var blob=await (await gh("https://api.github.com/repos/"+OWNER+"/"+REPO+"/git/blobs/"+meta.sha)).json();
-    var raw=new TextDecoder("utf-8").decode(Uint8Array.from(atob(blob.content.replace(/\s/g,"")),function(c){return c.charCodeAt(0);}));
-    if(raw.indexOf('id="q"')>-1){ flash(msg,"Store ka design pehle se update hai.",true); return; }
-    var next=applyStorePatches(raw);
-    var r=await gh(API,{method:"PUT",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({message:"Store design update (admin app)",content:b64(next),sha:meta.sha})});
-    var j=await r.json(); S.sha=j.content.sha; S.raw=next;
-    flash(msg,"Design update ho gaya. 1-2 minute me site par dikhega.",true);
-  }catch(err){ flash(msg,"Design update nahi hua: "+err.message,false); }
-}
-$("#btnDesign").onclick=designUpdate;
-
-/* ---------- Connect / reload / logout ---------- */
-$("#btnConnect").onclick=async()=>{
-  const t=$("#tokenIn").value.trim();
-  if(!t){ flash($("#connMsg"),"Token paste karein",false); return; }
-  token=t;
-  try{
-    await load();
-    try{localStorage.setItem("bdi-gh-token",token);}catch(e){}
-    show("main");
-  }catch(err){
-    token="";
-    flash($("#connMsg"),"Connect nahi hua: "+err.message,false);
-  }
-};
-$("#btnReload").onclick=async()=>{
-  if(S.dirty && !confirm("Jo badlav save nahi hue hain wo chale jayenge. Reload karein?")) return;
-  clearMsg($("#globalMsg"));
-  try{ await load(); flash($("#globalMsg"),"Latest store data load ho gaya.",true); }
-  catch(err){ flash($("#globalMsg"),"Reload nahi hua: "+err.message,false); }
-};
-$("#btnLogout").onclick=()=>{
-  if(S.dirty && !confirm("Save nahi hua badlav chale jayenge. Logout karein?")) return;
-  try{localStorage.removeItem("bdi-gh-token");}catch(e){}
-  token=""; S={sha:null,raw:null,data:null,dirty:false,editIdx:-1,draft:null};
-  show("connect");
-};
-
-window.addEventListener("beforeunload",e=>{ if(S.dirty){ e.preventDefault(); e.returnValue=""; } });
-
-(async function init(){
-  if(token){
-    show("main");
-    try{ await load(); }
-    catch(err){
-      show("connect");
-      flash($("#connMsg"),"Token kaam nahi kar raha ("+err.message+"). Naya token daalein.",false);
-    }
-  } else {
-    show("connect");
-  }
-})();
-</script>
-</body>
-  </html>
+  var ann_
