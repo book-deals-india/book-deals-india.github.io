@@ -340,7 +340,7 @@ $("#btnSave").onclick=async()=>{
     const j=await r.json();
     S.sha=j.content.sha; S.raw=newRaw;
     setDirty(false);
-    flash($("#globalMsg"),"Store par save ho gaya. 1-2 minute me site par dikhega.",true);
+      flash($("#globalMsg"),"Store par save ho gaya. 1-2 minute me site par dikhega.",true);
   }catch(err){
     setDirty(true);
     let text="Save nahi hua: "+err.message;
@@ -405,4 +405,93 @@ function applyStorePatches(t){
   function one(anchor){var n=t.split(anchor).length-1; if(n!==1) throw new Error("design anchor mila nahi ("+n+")"); }
   var css_anchor='</style>\n<meta name="description"';
   one(css_anchor); t=t.split(css_anchor).join(PATCH_CSS+css_anchor);
-  var ann_
+  var ann_anchor='<header class="bar"><div class="wrap">';
+  one(ann_anchor); t=t.split(ann_anchor).join(PATCH_ANN);
+  var tools_anchor='  <h2 class="sec" id="books">Featured Books</h2>\n  <section class="products" id="products"></section>';
+  one(tools_anchor); t=t.split(tools_anchor).join(PATCH_TOOLS.replace(/\n  <section class="products" id="products"><\/section>$/,"")+'\n  <section class="products" id="products"></section>');
+  var a=t.indexOf("function renderProducts(){"), b=t.indexOf("function count(){");
+  if(a<0||b<=a) throw new Error("renderProducts block nahi mila");
+  t=t.slice(0,a)+PATCH_RP+t.slice(b);
+  var rev_anchor='  $("reviews").innerHTML=L.map(';
+  one(rev_anchor); t=t.split(rev_anchor).join(PATCH_REV+rev_anchor.slice(0));
+  return t;
+}
+function applyPayPatches(t){
+  function one(a){var n=t.split(a).length-1; if(n!==1) throw new Error("payment anchor mila nahi ("+n+")"); }
+  var a1='</style>';
+  one(a1); t=t.split(a1).join('.btn-upi{display:block;text-align:center;margin:10px 0;background:var(--accent);color:var(--accent-fg);border-radius:12px;padding:12px;font-weight:700;text-decoration:none}\n'+a1);
+  var a2='function isCod(){';
+  one(a2); t=t.split(a2).join('function dcOf(p){var v=parseInt(p.dc,10);return v>0?v:0;}\nfunction delTotal(){if(!isCod())return 0;return cart.reduce(function(a,l){var p=byId(l.id);return a+(p?dcOf(p)*l.qty:0);},0);}\n'+a2);
+  var a3='"Payment: Cash on Delivery (advance "+rs(payNow())+" UPI se, baaki "+rs(total()-payNow())+" delivery par)"';
+  one(a3); t=t.split(a3).join('"Payment: Cash on Delivery (advance "+rs(payNow())+" UPI se, baaki "+rs(total()-payNow())+" + delivery charge "+rs(delTotal())+" delivery par)"');
+  var a4='<div>Abhi UPI se bhejein: <b id="payamt"></b></div>';
+  one(a4); t=t.split(a4).join(a4+'\n        <a class="btn-upi" id="upipay" href="#">UPI app me pay karein</a>');
+  var a5='<div class="tot"><span>Kitabon ka total</span><span id="total"></span></div>';
+  one(a5); t=t.split(a5).join(a5+'\n    <div class="tot" id="dline" hidden><span>Delivery charge (COD, delivery par)</span><span id="dtot"></span></div>');
+  var a6='  $("paycod").textContent="Baaki "+rs(total()-payNow())+" delivery par cash ya UPI se dena hai.";';
+  one(a6); t=t.split(a6).join(a6+'\n  $("dline").hidden=!cod; $("dtot").textContent=rs(delTotal());\n  var up=$("upipay"); if(up){ up.href="upi://pay?pa="+SHOP.upi+"&pn="+encodeURIComponent(SHOP.name)+"&am="+payNow()+"&cu=INR&tn="+encodeURIComponent("Book order"); }');
+  return t;
+}
+async function designUpdate(){
+  if(!confirm("Store ka design update karna hai? Kitabein aur prices same rahenge.")) return;
+  var msg=$("#globalMsg");
+  try{
+    var meta=await (await gh(API)).json();
+    var blob=await (await gh("https://api.github.com/repos/"+OWNER+"/"+REPO+"/git/blobs/"+meta.sha)).json();
+    var raw=new TextDecoder("utf-8").decode(Uint8Array.from(atob(blob.content.replace(/\s/g,"")),function(c){return c.charCodeAt(0);}));
+    var next=raw;
+    if(next.indexOf('id="q"')<0) next=applyStorePatches(next);
+    if(next.indexOf('id="upipay"')<0) next=applyPayPatches(next);
+    if(next===raw){ flash(msg,"Store pehle se update hai.",true); return; }
+    var r=await gh(API,{method:"PUT",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:"Store design update (admin app)",content:b64(next),sha:meta.sha})});
+    var j=await r.json(); S.sha=j.content.sha; S.raw=next;
+    flash(msg,"Design update ho gaya. 1-2 minute me site par dikhega.",true);
+  }catch(err){ flash(msg,"Design update nahi hua: "+err.message,false); }
+}
+$("#btnDesign").onclick=designUpdate;
+
+/* ---------- Connect / reload / logout ---------- */
+$("#btnConnect").onclick=async()=>{
+  const t=$("#tokenIn").value.trim();
+  if(!t){ flash($("#connMsg"),"Token paste karein",false); return; }
+  token=t;
+  try{
+    await load();
+    try{localStorage.setItem("bdi-gh-token",token);}catch(e){}
+    show("main");
+  }catch(err){
+    token="";
+    flash($("#connMsg"),"Connect nahi hua: "+err.message,false);
+  }
+};
+$("#btnReload").onclick=async()=>{
+  if(S.dirty && !confirm("Jo badlav save nahi hue hain wo chale jayenge. Reload karein?")) return;
+  clearMsg($("#globalMsg"));
+  try{ await load(); flash($("#globalMsg"),"Latest store data load ho gaya.",true); }
+  catch(err){ flash($("#globalMsg"),"Reload nahi hua: "+err.message,false); }
+};
+$("#btnLogout").onclick=()=>{
+  if(S.dirty && !confirm("Save nahi hua badlav chale jayenge. Logout karein?")) return;
+  try{localStorage.removeItem("bdi-gh-token");}catch(e){}
+  token=""; S={sha:null,raw:null,data:null,dirty:false,editIdx:-1,draft:null};
+  show("connect");
+};
+
+window.addEventListener("beforeunload",e=>{ if(S.dirty){ e.preventDefault(); e.returnValue=""; } });
+
+(async function init(){
+  if(token){
+    show("main");
+    try{ await load(); }
+    catch(err){
+      show("connect");
+      flash($("#connMsg"),"Token kaam nahi kar raha ("+err.message+"). Naya token daalein.",false);
+    }
+  } else {
+    show("connect");
+  }
+})();
+</script>
+</body>
+</html>
