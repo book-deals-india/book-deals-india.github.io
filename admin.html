@@ -1,3 +1,406 @@
+ <!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Book Admin</title>
+<style>
+:root{--bg:#FBF6EC;--fg:#1d1d1b;--card:#ffffff;--line:#e3d9c4;--accent:#1E3A2F;--btn:#E8795E;--muted:#7a7468;--ok:#2e7d32;--err:#b3261e}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:90px;overflow-x:hidden}
+.wrap{padding:0 max(16px,env(safe-area-inset-left,0px)) 0 max(16px,env(safe-area-inset-right,0px));max-width:720px;margin:0 auto}
+header{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:12px 0}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:8px}
+header h1{font-size:18px;margin:0}
+h2{font-size:17px;margin:22px 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=number],input[type=password],textarea{width:100%;font:inherit;padding:10px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--fg)}
+textarea{min-height:90px;resize:vertical}
+button,.btn{font:inherit;border:0;border-radius:10px;padding:11px 14px;background:var(--btn);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);padding:8px 10px}
+button.light{background:#efe8d8;color:var(--fg)}
+button.danger{background:var(--err)}
+button:disabled{opacity:.5}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+.book{display:flex;gap:12px;align-items:center;cursor:pointer}
+.book img{width:54px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex:0 0 54px;background:#fff}
+.book .meta{min-width:0;flex:1}
+.book .name{font-weight:600;overflow-wrap:anywhere}
+.muted{color:var(--muted);font-size:13px}
+.tag{display:inline-block;background:#f4c542;color:#222;font-size:11px;padding:2px 7px;border-radius:99px;margin-left:4px}
+.photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.photos .ph{position:relative;width:82px;height:110px}
+.photos img{width:82px;height:110px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.photos .x{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);color:#fff;border-radius:50%;width:24px;height:24px;padding:0;line-height:24px;text-align:center;font-size:14px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-left,0px)) calc(10px + env(safe-area-inset-bottom,0px))}
+.bar .wrap{display:flex;gap:10px;align-items:center}
+.msg{font-size:14px;margin:8px 0;padding:8px 10px;border-radius:8px;display:none}
+.msg.show{display:block}
+.msg.ok{background:#e8f5e9;color:var(--ok)}
+.msg.err{background:#fdecea;color:var(--err)}
+.hide{display:none!important}
+.help{font-size:13px;color:var(--muted);background:#fff8e6;border:1px solid #f1e2b8;border-radius:10px;padding:10px 12px}
+.help ol{margin:6px 0 0 18px;padding:0}
+.dirty{color:#b26a00;font-size:13px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Book Admin</h1>
+    <div id="hdrBtns" class="row" style="flex:0 0 auto">
+      <button class="ghost" id="btnReload">Reload</button>
+      <button class="ghost" id="btnLogout">Logout</button>
+    </div>
+  </div>
+</header>
+
+<!-- Connect screen -->
+<div id="scrConnect" class="wrap hide">
+  <div class="card">
+    <h2 style="margin-top:6px">GitHub se connect karein</h2>
+    <div class="help">
+      Ek token banana padega (sirf is store ke liye):
+      <ol>
+        <li>GitHub par <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens</b> kholo.</li>
+        <li><b>Repository access</b> me sirf <b>book-deals-india.github.io</b> chuno.</li>
+        <li><b>Repository permissions → Contents</b> ko <b>Read and write</b> karo.</li>
+        <li>Token generate karke copy karo aur neeche paste karo.</li>
+      </ol>
+    </div>
+    <label>Token</label>
+    <input type="password" id="tokenIn" placeholder="github_pat_...">
+    <div style="margin-top:12px"><button id="btnConnect">Connect karein</button></div>
+    <div id="connMsg" class="msg err"></div>
+  </div>
+</div>
+
+<!-- Main screen -->
+<div id="scrMain" class="wrap hide">
+  <div id="globalMsg" class="msg"></div>
+  <div style="margin:4px 0 10px"><button class="light" id="btnDesign">Store design update karein</button></div>
+
+  <div id="listView">
+    <div class="card">
+      <div class="row">
+        <div>
+          <div style="font-weight:600">Default advance (COD)</div>
+          <div class="muted">Jis kitab ka advance khali hai, usme ye lagega</div>
+        </div>
+        <div style="flex:0 0 110px"><input type="number" id="defAdv" min="0" step="1"></div>
+      </div>
+      <label>Return &amp; refund policy (har line alag)</label>
+      <textarea id="policy"></textarea>
+    </div>
+
+    <h2>Kitabein (<span id="count">0</span>)</h2>
+    <div id="books"></div>
+    <div style="margin-top:12px"><button class="light" id="btnNew">+ Nayi kitab add karein</button></div>
+  </div>
+
+  <div id="editView" class="hide">
+    <div class="row" style="margin-top:10px">
+      <button class="light" id="btnBack" style="flex:0 0 auto">← Wapas</button>
+      <div style="text-align:right" class="muted" id="editId"></div>
+    </div>
+    <div class="card">
+      <label>Kitab ka naam</label>
+      <input type="text" id="fName" placeholder="Book ka naam (author ke saath)">
+      <div class="row">
+        <div><label>Price (₹)</label><input type="number" id="fPrice" min="0" step="1"></div>
+        <div><label>Advance (₹) — khali = default</label><input type="number" id="fAdv" min="0" step="1"></div>
+      </div>
+      <label>Tag (jaise: Combo Offer) — khali chhod sakte hain</label>
+      <input type="text" id="fTag">
+      <label>Description (har line alag, store par bullets ki tarah dikhega)</label>
+      <textarea id="fDesc"></textarea>
+
+      <h2 style="margin:16px 0 0">Photos</h2>
+      <div class="muted">Pehli photo main cover hogi. Photo add karne par auto chhoti ho jayegi.</div>
+      <div class="photos" id="photos"></div>
+      <div style="margin-top:10px"><button class="light" id="btnAddPhoto">+ Photo add karein</button>
+        <input type="file" id="fileIn" accept="image/*" multiple class="hide"></div>
+      <div id="editMsg" class="msg err"></div>
+    </div>
+    <div class="card" style="border-color:#f0c4bb">
+      <div class="muted" style="margin-bottom:8px">Is kitab ko store se hatana ho to:</div>
+      <button class="danger" id="btnDelete">Ye kitab delete karein</button>
+    </div>
+    <div style="margin-top:10px"><button id="btnApply">Ye badlav lagu karein</button></div>
+    <div class="muted" style="margin-top:6px">"Lagu karein" sirf list me badlav karta hai. Store par dikhane ke liye neeche "Store par save karein" dabao.</div>
+  </div>
+</div>
+
+<div class="bar hide" id="saveBar">
+  <div class="wrap">
+    <div style="flex:1"><div class="dirty" id="dirtyTxt"></div></div>
+    <button id="btnSave" disabled>Store par save karein</button>
+  </div>
+</div>
+
+<script>
+const OWNER="book-deals-india", REPO="book-deals-india.github.io", FILE="index.html";
+const API="https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/"+FILE;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let token=""; try{token=localStorage.getItem("bdi-gh-token")||"";}catch(e){}
+let S={sha:null,raw:null,data:null,dirty:false,editIdx:-1,draft:null};
+
+function show(which){
+  $("#scrConnect").classList.toggle("hide",which!=="connect");
+  $("#scrMain").classList.toggle("hide",which!=="main");
+  $("#hdrBtns").classList.toggle("hide",which!=="main");
+  $("#saveBar").classList.toggle("hide",which!=="main");
+}
+function flash(el,text,ok){el.textContent=text;el.className="msg show "+(ok?"ok":"err");}
+function clearMsg(el){el.className="msg";el.textContent="";}
+
+async function gh(url,opts){
+  opts=opts||{};
+  const headers=Object.assign({Authorization:"Bearer "+token,Accept:"application/vnd.github+json"},opts.headers||{});
+  const r=await fetch(url,{method:opts.method||"GET",headers:headers,body:opts.body});
+  if(!r.ok){
+    let t="";try{t=(await r.json()).message||"";}catch(e){}
+    throw new Error(r.status+" "+(t||r.statusText));
+  }
+  return r;
+}
+
+async function load(){
+  const meta=await (await gh(API)).json();
+  S.sha=meta.sha;
+  const blob=await (await gh("https://api.github.com/repos/"+OWNER+"/"+REPO+"/git/blobs/"+meta.sha)).json();
+  const bytes=Uint8Array.from(atob(blob.content.replace(/\s/g,"")),c=>c.charCodeAt(0));
+  const raw=new TextDecoder("utf-8").decode(bytes);
+  const m=raw.match(/<script[^>]*id="catalog"[^>]*>([\s\S]*?)<\/script>/);
+  if(!m) throw new Error("catalog nahi mila. File ki shuruaat: "+raw.slice(0,120).replace(/\s+/g," "));
+  S.raw=raw;
+  S.data=JSON.parse(m[1]);
+  if(!Array.isArray(S.data.books)) S.data.books=[];
+  S.dirty=false;
+  renderList();
+}
+
+function renderList(){
+  $("#defAdv").value=S.data.advance||0;
+  $("#policy").value=S.data.policy||"";
+  const books=S.data.books;
+  $("#count").textContent=books.length;
+  $("#books").innerHTML=books.map((b,i)=>{
+    const img=(b.imgs&&b.imgs[0])?`<img src="${b.imgs[0]}" alt="">`:`<img alt="" style="display:flex">`;
+    return `<div class="card book" data-i="${i}">${img}<div class="meta">
+      <div class="name">${esc(b.n)||"(naam nahi)"}${b.tag?`<span class="tag">${esc(b.tag)}</span>`:""}</div>
+      <div class="muted">₹${esc(b.p)} · Advance ₹${b.adv>0?esc(b.adv):(S.data.advance||0)+" (default)"}</div>
+    </div></div>`;
+  }).join("");
+  document.querySelectorAll("#books .book").forEach(el=>el.onclick=()=>openEdit(+el.dataset.i));
+  setDirty(S.dirty);
+}
+
+function setDirty(d){
+  S.dirty=d;
+  $("#btnSave").disabled=!d;
+  $("#dirtyTxt").textContent=d?"Kuch badlav baaki hai — save karein":"Sab save hai";
+}
+
+function markChanged(){ setDirty(true); }
+
+function readTopSettings(){
+  const adv=parseInt($("#defAdv").value,10);
+  S.data.advance=isNaN(adv)?0:adv;
+  S.data.policy=$("#policy").value;
+}
+
+/* ---------- Edit ---------- */
+function openEdit(i){
+  S.editIdx=i;
+  const b=i<0?{tag:"",n:"",p:"",imgs:[],d:"",adv:0,id:nextId()}:S.data.books[i];
+  S.draft=JSON.parse(JSON.stringify(b));
+  $("#fName").value=S.draft.n||"";
+  $("#fPrice").value=S.draft.p||"";
+  $("#fAdv").value=S.draft.adv>0?S.draft.adv:"";
+  $("#fTag").value=S.draft.tag||"";
+  $("#fDesc").value=S.draft.d||"";
+  $("#editId").textContent=i<0?"Nayi kitab":"Kitab #"+S.draft.id;
+  $("#btnDelete").parentElement.classList.toggle("hide",i<0);
+  clearMsg($("#editMsg"));
+  renderPhotos();
+  $("#listView").classList.add("hide");
+  $("#editView").classList.remove("hide");
+  window.scrollTo(0,0);
+}
+function closeEdit(){
+  $("#editView").classList.add("hide");
+  $("#listView").classList.remove("hide");
+  S.draft=null;
+  window.scrollTo(0,0);
+}
+function renderPhotos(){
+  $("#photos").innerHTML=(S.draft.imgs||[]).map((src,k)=>
+    `<div class="ph"><img src="${src}" alt=""><button class="x" data-k="${k}" aria-label="hatao">✕</button></div>`).join("");
+  document.querySelectorAll("#photos .x").forEach(btn=>btn.onclick=()=>{
+    S.draft.imgs.splice(+btn.dataset.k,1); renderPhotos();
+  });
+}
+function nextId(){
+  const ids=S.data.books.map(b=>+b.id||0);
+  return (ids.length?Math.max(...ids):0)+1;
+}
+
+function resizeImage(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const max=900, s=Math.min(1,max/Math.max(img.width,img.height));
+      const w=Math.round(img.width*s), h=Math.round(img.height*s);
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg",0.82));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("photo nahi khul rahi"));};
+    img.src=url;
+  });
+}
+
+$("#btnAddPhoto").onclick=()=>$("#fileIn").click();
+$("#fileIn").onchange=async e=>{
+  const files=[...e.target.files];
+  e.target.value="";
+  for(const f of files){
+    try{ S.draft.imgs=S.draft.imgs||[]; S.draft.imgs.push(await resizeImage(f)); }
+    catch(err){ flash($("#editMsg"),err.message,false); }
+  }
+  renderPhotos();
+};
+
+$("#btnApply").onclick=()=>{
+  const name=$("#fName").value.trim();
+  const price=parseInt($("#fPrice").value,10);
+  if(!name){ flash($("#editMsg"),"Kitab ka naam likhna zaroori hai",false); return; }
+  if(isNaN(price)||price<=0){ flash($("#editMsg"),"Price sahi se likhein",false); return; }
+  if(!S.draft.imgs||!S.draft.imgs.length){ flash($("#editMsg"),"Kam se kam 1 photo add karein",false); return; }
+  const adv=parseInt($("#fAdv").value,10);
+  const book=Object.assign({},S.draft,{
+    n:name, p:price, tag:$("#fTag").value.trim(), d:$("#fDesc").value,
+    adv:isNaN(adv)||adv<=0?0:adv
+  });
+  if(!book.adv) delete book.adv;
+  if(S.editIdx<0){ S.data.books.push(book); }
+  else { S.data.books[S.editIdx]=book; }
+  markChanged();
+  closeEdit();
+  renderList();
+};
+
+$("#btnDelete").onclick=()=>{
+  if(S.editIdx<0) return;
+  if(!confirm("Ye kitab store se hata dein?")) return;
+  S.data.books.splice(S.editIdx,1);
+  markChanged();
+  closeEdit();
+  renderList();
+};
+
+$("#btnBack").onclick=()=>{ closeEdit(); };
+$("#btnNew").onclick=()=>openEdit(-1);
+
+$("#defAdv").oninput=()=>{readTopSettings();markChanged();};
+$("#policy").oninput=()=>{readTopSettings();markChanged();};
+
+/* ---------- Save to GitHub ---------- */
+function b64(str){
+  const bytes=new TextEncoder().encode(str);
+  let bin="";
+  const CH=0x8000;
+  for(let i=0;i<bytes.length;i+=CH) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH));
+  return btoa(bin);
+}
+
+$("#btnSave").onclick=async()=>{
+  readTopSettings();
+  const json=JSON.stringify(S.data).replace(/</g,"\\u003c");
+  const newRaw=S.raw.replace(/(<script id="catalog" type="application\/json">)[\s\S]*?(<\/script>)/,(_,a,b)=>a+json+b);
+  const btn=$("#btnSave"); btn.disabled=true; btn.textContent="Save ho raha hai...";
+  try{
+    const r=await gh(API,{method:"PUT",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:"Update books (admin app)",content:b64(newRaw),sha:S.sha})});
+    const j=await r.json();
+    S.sha=j.content.sha; S.raw=newRaw;
+    setDirty(false);
+    flash($("#globalMsg"),"Store par save ho gaya. 1-2 minute me site par dikhega.",true);
+  }catch(err){
+    setDirty(true);
+    let text="Save nahi hua: "+err.message;
+    if(String(err.message).startsWith("409")) text="Kisi aur ne file badli hai. Reload karke dobara try karein.";
+    flash($("#globalMsg"),text,false);
+  }finally{
+    btn.textContent="Store par save karein";
+  }
+};const PATCH_CSS=`
+.announce{background:var(--accent);color:var(--accent-fg);font-size:.82rem;text-align:center;padding:8px 12px;font-weight:600;letter-spacing:.01em}
+.tools{display:grid;gap:10px;margin:4px 0 14px}
+.search{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg)}
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pills button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:7px 14px;font-size:.88rem;font-weight:600}
+.pills button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.info h3{min-height:2.4em;line-height:1.2}
+.info p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:4.1rem}
+.pic .thumbs{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;background:rgba(255,255,255,.92);justify-content:center;margin:0}
+.mrp{font-size:.95rem;font-weight:500;color:var(--muted);margin-right:6px}
+.save{display:inline-block;background:#2e7d32;color:#fff;border-radius:6px;font-size:.72rem;font-weight:700;padding:2px 7px;margin-left:8px;vertical-align:middle;font-family:var(--body)}
+`;
+const PATCH_ANN=`<div class="announce">Free Delivery on orders above ₹299 | Cash on Delivery Available</div>
+<header class="bar"><div class="wrap">`;
+const PATCH_TOOLS=`  <h2 class="sec" id="books">Featured Books</h2>
+  <div class="tools">
+    <input class="search" id="q" type="search" placeholder="Kitab ya author dhoondhein..." aria-label="Kitab dhoondhein">
+    <div class="pills" role="group" aria-label="Category">
+      <button type="button" data-cat="All" aria-pressed="true">All</button>
+      <button type="button" data-cat="Self-Help" aria-pressed="false">Self-Help</button>
+      <button type="button" data-cat="Finance" aria-pressed="false">Finance</button>
+      <button type="button" data-cat="Combo" aria-pressed="false">Combo</button>
+    </div>
+  </div>
+  <section class="products" id="products"></section>`;
+const PATCH_RP=`var FILT={cat:"All",q:""};
+function catOf(p){var s=(p.tag||"")+" "+(p.n||"");if(/combo/i.test(s))return "Combo";if(/money|rich dad|wealth|finance/i.test(p.n||""))return "Finance";return "Self-Help";}
+function visible(){var q=FILT.q.trim().toLowerCase();return P.filter(function(p){if(FILT.cat!=="All"&&catOf(p)!==FILT.cat)return false;if(!q)return true;return (p.n+" "+(p.d||"")).toLowerCase().indexOf(q)>-1;});}
+function renderProducts(){
+  if(!P.length){$("products").innerHTML='<p class="empty">Abhi koi kitab nahi hai. Jald hi nayi kitabein aayengi.</p>';return;}
+  var V=visible();
+  if(!V.length){$("products").innerHTML='<p class="empty">Is search ya category me koi kitab nahi mili.</p>';return;}
+  $("products").innerHTML=V.map(function(p){
+    var im=p.imgs||[];
+    var mrp=parseInt(p.mrp,10), off=(mrp>p.p)?Math.round((mrp-p.p)/mrp*100):0;
+    var priceHtml='<div class="price">'+(off?'<s class="mrp">'+rs(mrp)+'</s>':'')+rs(p.p)+'<small>ONLINE / COD</small>'+(off?'<span class="save">SAVE '+off+'%</span>':'')+'</div>';
+    return '<article class="card" data-id="'+p.id+'"><div class="pic"><img class="main" src="'+im[0]+'" alt="'+esc(p.n)+'" width="512" height="512">'+(p.tag?'<span class="tag">'+esc(p.tag)+'</span>':'')+
+     (im.length>1?'<div class="thumbs" role="group" aria-label="Aur photos">'+im.map(function(s,i){return '<button type="button" data-th="'+i+'" aria-pressed="'+(i===0)+'" aria-label="Photo '+(i+1)+'"><img src="'+s+'" alt="" width="60" height="60"></button>';}).join("")+'</div>':'')+'</div>'+
+     '<div class="info"><h3>'+esc(p.n)+'</h3>'+(p.d?'<p>'+esc(p.d)+'</p>':'')+priceHtml+
+     '<button class="buy" data-buy="'+p.id+'">Order Now</button><button class="share" data-share="'+p.id+'">WhatsApp par share karein</button></div></article>';
+  }).join("");
+}
+$("q").addEventListener("input",function(e){FILT.q=e.target.value;renderProducts();});
+document.querySelectorAll("#cats button, .pills button").forEach(function(b){b.addEventListener("click",function(){FILT.cat=b.dataset.cat;document.querySelectorAll(".pills button").forEach(function(x){x.setAttribute("aria-pressed",String(x===b));});renderProducts();});});
+
+`;
+const PATCH_REV=`  if(!L.length){$("reviews").innerHTML='<li class="empty">Abhi koi review nahi hai. Pehle customers ke reviews yahan dikhenge.</li>';return;}
+`;
+
+function applyStorePatches(t){
+  function one(anchor){var n=t.split(anchor).length-1; if(n!==1) throw new Error("design anchor mila nahi ("+n+")"); }
+  var css_anchor='</style>\n<meta name="description"';
+  one(css_anchor); t=t.split(css_anchor).join(PATCH_CSS+css_anchor);
+  var ann_anchor='<header class="bar"><div class="wrap">';
+  one(ann_anchor); t=t.split(ann_anchor).join(PATCH_ANN);
+  var tools_anchor='  <h2 class="sec" id="books">Featured Books</h2>\n  <section class="products" id="products"></section>';
   one(tools_anchor); t=t.split(tools_anchor).join(PATCH_TOOLS.replace(/\n  <section class="products" id="products"><\/section>$/,"")+'\n  <section class="products" id="products"></section>');
   var a=t.indexOf("function renderProducts(){"), b=t.indexOf("function count(){");
   if(a<0||b<=a) throw new Error("renderProducts block nahi mila");
