@@ -166,6 +166,7 @@ textarea{resize:vertical}
 .pic .thumbs{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;background:rgba(255,255,255,.92);justify-content:center;margin:0}
 .mrp{font-size:.95rem;font-weight:500;color:var(--muted);margin-right:6px}
 .save{display:inline-block;background:#2e7d32;color:#fff;border-radius:6px;font-size:.72rem;font-weight:700;padding:2px 7px;margin-left:8px;vertical-align:middle;font-family:var(--body)}
+.btn-upi{display:block;text-align:center;margin:10px 0;background:var(--accent);color:var(--accent-fg);border-radius:12px;padding:12px;font-weight:700;text-decoration:none}
 </style>
 <meta name="description" content="Bestsellers at Unbeatable Prices. Handpicked books delivered across India, pay online or Cash on Delivery and get order confirmation on WhatsApp.">
 <meta property="og:type" content="website">
@@ -311,12 +312,14 @@ textarea{resize:vertical}
       <div class="pay"><b id="paytitle">Payment: online (UPI)</b>
         <div class="upi"><span>UPI ID</span><code id="upiid"></code><button type="button" class="ghost sm2" id="upicopy">Copy</button></div>
         <div>Abhi UPI se bhejein: <b id="payamt"></b></div>
+        <a class="btn-upi" id="upipay" href="#">UPI app me pay karein</a>
         <div id="paycod" hidden></div>
         <div>UPI ID copy karke apne UPI app (PhonePe, Google Pay, Paytm) me daalein aur upar likha total bhejein. Payment ke baad screenshot WhatsApp par bhejein.</div></div>
     </div>
   </div>
   <div class="sf" id="foot">
     <div class="tot"><span>Kitabon ka total</span><span id="total"></span></div>
+    <div class="tot" id="dline" hidden><span>Delivery charge (COD, delivery par)</span><span id="dtot"></span></div>
     <a class="wa" id="wa" href="#" target="_blank" rel="noopener" aria-disabled="true">WhatsApp par order bhejein</a>
     <p class="fine" id="need">Order bhejne ke liye naam, mobile, pata aur pincode bharein.</p>
     <button class="ghost" id="copy">Order ka message copy karein</button>
@@ -411,12 +414,14 @@ function valid(){
 function msg(){
   var L=["Namaste Book.Deals.India, mujhe yeh order karna hai:","Order ID: "+OID,""];
   cart.forEach(function(l,i){var p=byId(l.id);L.push((i+1)+". "+p.n+" | "+l.qty+" x "+rs(p.p)+" = "+rs(p.p*l.qty));});
-  L.push("","Kitabon ka total: "+rs(total()),(isCod()?"Payment: Cash on Delivery (advance "+rs(payNow())+" UPI se, baaki "+rs(total()-payNow())+" delivery par)":"Payment: Online (poora UPI)"),"",
+  L.push("","Kitabon ka total: "+rs(total()),(isCod()?"Payment: Cash on Delivery (advance "+rs(payNow())+" UPI se, baaki "+rs(total()-payNow())+" + delivery charge "+rs(delTotal())+" delivery par)":"Payment: Online (poora UPI)"),"",
     "Naam: "+$("cname").value.trim(),"Mobile: "+$("cphone").value.trim(),
     "Pata: "+$("caddr").value.trim(),"Pincode: "+$("cpin").value.trim());
   if($("cstate").value.trim())L.push("Rajya: "+$("cstate").value.trim());
   return L.join("\n");
 }
+function dcOf(p){var v=parseInt(p.dc,10);return v>0?v:0;}
+function delTotal(){if(!isCod())return 0;return cart.reduce(function(a,l){var p=byId(l.id);return a+(p?dcOf(p)*l.qty:0);},0);}
 function isCod(){var r=document.querySelector('input[name="pm"]:checked');return !!r&&r.value==="cod";}
 function defAdv(){var v=parseInt(DATA.advance,10);return v>0?v:50;}
 function advOf(p){var v=parseInt(p.adv,10);return v>0?v:defAdv();}
@@ -430,6 +435,8 @@ function update(){
   $("paytitle").textContent=cod?"Payment: Cash on Delivery":"Payment: online (UPI)";
   $("paycod").hidden=!cod;
   $("paycod").textContent="Baaki "+rs(total()-payNow())+" delivery par cash ya UPI se dena hai.";
+  $("dline").hidden=!cod; $("dtot").textContent=rs(delTotal());
+  var up=$("upipay"); if(up){ up.href="upi://pay?pa="+SHOP.upi+"&pn="+encodeURIComponent(SHOP.name)+"&am="+payNow()+"&cu=INR&tn="+encodeURIComponent("Book order"); }
 }
 document.querySelectorAll('input[name="pm"]').forEach(function(r){r.addEventListener("change",update);});
 var last=null;
