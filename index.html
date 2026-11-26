@@ -154,6 +154,18 @@ textarea{resize:vertical}
 .share.big{display:block;margin-top:12px;text-align:center;text-decoration:none;padding:13px}
 .reviews{list-style:none;margin:0;padding:0;display:grid;gap:10px;font-size:.95rem;overflow-wrap:anywhere}
 .reviews:empty{display:none}
+
+.announce{background:var(--accent);color:var(--accent-fg);font-size:.82rem;text-align:center;padding:8px 12px;font-weight:600;letter-spacing:.01em}
+.tools{display:grid;gap:10px;margin:4px 0 14px}
+.search{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg)}
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pills button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:7px 14px;font-size:.88rem;font-weight:600}
+.pills button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.info h3{min-height:2.4em;line-height:1.2}
+.info p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:4.1rem}
+.pic .thumbs{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;background:rgba(255,255,255,.92);justify-content:center;margin:0}
+.mrp{font-size:.95rem;font-weight:500;color:var(--muted);margin-right:6px}
+.save{display:inline-block;background:#2e7d32;color:#fff;border-radius:6px;font-size:.72rem;font-weight:700;padding:2px 7px;margin-left:8px;vertical-align:middle;font-family:var(--body)}
 </style>
 <meta name="description" content="Bestsellers at Unbeatable Prices. Handpicked books delivered across India, pay online or Cash on Delivery and get order confirmation on WhatsApp.">
 <meta property="og:type" content="website">
@@ -176,6 +188,7 @@ textarea{resize:vertical}
 </head>
 <body>
 
+<div class="announce">Free Delivery on orders above ₹299 | Cash on Delivery Available</div>
 <header class="bar"><div class="wrap">
   <div class="brand">Book<i>.</i>Deals<i>.</i>India</div>
   <button class="cartbtn" id="opencart" aria-label="Cart kholein">Cart <span class="n" id="cn">0</span></button>
@@ -192,6 +205,15 @@ textarea{resize:vertical}
   </section>
 
   <h2 class="sec" id="books">Featured Books</h2>
+  <div class="tools">
+    <input class="search" id="q" type="search" placeholder="Kitab ya author dhoondhein..." aria-label="Kitab dhoondhein">
+    <div class="pills" role="group" aria-label="Category">
+      <button type="button" data-cat="All" aria-pressed="true">All</button>
+      <button type="button" data-cat="Self-Help" aria-pressed="false">Self-Help</button>
+      <button type="button" data-cat="Finance" aria-pressed="false">Finance</button>
+      <button type="button" data-cat="Combo" aria-pressed="false">Combo</button>
+    </div>
+  </div>
   <section class="products" id="products"></section>
 
   <h2 class="sec">How to Order</h2>
@@ -337,22 +359,32 @@ $("upicopy").addEventListener("click",function(){
 
 function renderReviews(){
   var L=String(DATA.reviews||"").split("\n").map(function(x){return x.trim();}).filter(Boolean);
+  if(!L.length){$("reviews").innerHTML='<li class="empty">Abhi koi review nahi hai. Pehle customers ke reviews yahan dikhenge.</li>';return;}
   $("reviews").innerHTML=L.map(function(x){var i=x.indexOf("|");var who=i>-1?x.slice(0,i).trim():"";var txt=i>-1?x.slice(i+1).trim():x;return "<li>"+(who?"<b>"+esc(who)+"</b> - ":"")+esc(txt)+"</li>";}).join("");
 }
 function renderPolicy(){
   var L=String(DATA.policy||"").split("\n").map(function(x){return x.trim();}).filter(Boolean);
   $("policy").innerHTML=L.map(function(x){return "<li>"+esc(x)+"</li>";}).join("");
 }
+var FILT={cat:"All",q:""};
+function catOf(p){var s=(p.tag||"")+" "+(p.n||"");if(/combo/i.test(s))return "Combo";if(/money|rich dad|wealth|finance/i.test(p.n||""))return "Finance";return "Self-Help";}
+function visible(){var q=FILT.q.trim().toLowerCase();return P.filter(function(p){if(FILT.cat!=="All"&&catOf(p)!==FILT.cat)return false;if(!q)return true;return (p.n+" "+(p.d||"")).toLowerCase().indexOf(q)>-1;});}
 function renderProducts(){
   if(!P.length){$("products").innerHTML='<p class="empty">Abhi koi kitab nahi hai. Jald hi nayi kitabein aayengi.</p>';return;}
-  $("products").innerHTML=P.map(function(p){
+  var V=visible();
+  if(!V.length){$("products").innerHTML='<p class="empty">Is search ya category me koi kitab nahi mili.</p>';return;}
+  $("products").innerHTML=V.map(function(p){
     var im=p.imgs||[];
-    return '<article class="card" data-id="'+p.id+'"><div class="pic"><img class="main" src="'+im[0]+'" alt="'+esc(p.n)+'" width="512" height="512">'+(p.tag?'<span class="tag">'+esc(p.tag)+'</span>':'')+'</div>'+
-     (im.length>1?'<div class="thumbs" role="group" aria-label="Aur photos">'+im.map(function(s,i){return '<button type="button" data-th="'+i+'" aria-pressed="'+(i===0)+'" aria-label="Photo '+(i+1)+'"><img src="'+s+'" alt="" width="60" height="60"></button>';}).join("")+'</div>':'')+
-     '<div class="info"><h3>'+esc(p.n)+'</h3>'+(p.d?'<p>'+esc(p.d)+'</p>':'')+'<div class="price">'+rs(p.p)+'<small>ONLINE / COD</small></div>'+
+    var mrp=parseInt(p.mrp,10), off=(mrp>p.p)?Math.round((mrp-p.p)/mrp*100):0;
+    var priceHtml='<div class="price">'+(off?'<s class="mrp">'+rs(mrp)+'</s>':'')+rs(p.p)+'<small>ONLINE / COD</small>'+(off?'<span class="save">SAVE '+off+'%</span>':'')+'</div>';
+    return '<article class="card" data-id="'+p.id+'"><div class="pic"><img class="main" src="'+im[0]+'" alt="'+esc(p.n)+'" width="512" height="512">'+(p.tag?'<span class="tag">'+esc(p.tag)+'</span>':'')+
+     (im.length>1?'<div class="thumbs" role="group" aria-label="Aur photos">'+im.map(function(s,i){return '<button type="button" data-th="'+i+'" aria-pressed="'+(i===0)+'" aria-label="Photo '+(i+1)+'"><img src="'+s+'" alt="" width="60" height="60"></button>';}).join("")+'</div>':'')+'</div>'+
+     '<div class="info"><h3>'+esc(p.n)+'</h3>'+(p.d?'<p>'+esc(p.d)+'</p>':'')+priceHtml+
      '<button class="buy" data-buy="'+p.id+'">Order Now</button><button class="share" data-share="'+p.id+'">WhatsApp par share karein</button></div></article>';
   }).join("");
 }
+$("q").addEventListener("input",function(e){FILT.q=e.target.value;renderProducts();});
+document.querySelectorAll("#cats button, .pills button").forEach(function(b){b.addEventListener("click",function(){FILT.cat=b.dataset.cat;document.querySelectorAll(".pills button").forEach(function(x){x.setAttribute("aria-pressed",String(x===b));});renderProducts();});});
 
 function count(){return cart.reduce(function(a,l){return a+l.qty;},0);}
 function total(){return cart.reduce(function(a,l){var p=byId(l.id);return a+(p?p.p*l.qty:0);},0);}
